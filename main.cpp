@@ -6,7 +6,6 @@
 #include <memory>
 
 
-
 class XML_node {
 public:
     std::string tag;
@@ -21,7 +20,7 @@ public:
         children.push_back(std::move(child));
     }
 
-    std::string stringify(const int depth = 0) {
+    std::string stringify(const int depth = 0) const{
         const std::string indent = std::string(depth * 2, ' ');
         std::string result = "";
 
@@ -46,6 +45,12 @@ public:
             child->for_each(callback);
         };
     };
+
+    void print() const {
+        std::string xml = stringify();
+        std::cout << xml << std::endl;
+    }
+
 };
 
 class XML_document {
@@ -189,6 +194,35 @@ private:
 
 class resurs_XML {
 public:
+
+    Iterator begin() {
+        return Iterator(document.getRootNode());
+    }
+
+    Iterator end() {
+        return Iterator(nullptr);
+    }
+
+    void parse(const std::string &xml) {
+        document.parse(xml);
+    }
+
+    void load(const std::string &path) {
+        document.load(path);
+    }
+
+    void save(const std::string &path) {
+        document.save(path);
+    }
+
+    void print() {
+        document.print();
+    }
+
+    void for_each(std::function<void(const XML_node &)> callback) {
+        document.for_each(callback);
+    }
+
     static std::unique_ptr<resurs_XML> create() {
         return std::unique_ptr<resurs_XML>();
     }
@@ -215,20 +249,23 @@ private:
         return end();
     }
 
-    Iterator end() {
-        return Iterator(nullptr);
-    }
 };
 
 int main() {
+/*
     XML_document doc;
     doc.load("./example.txt");
     doc.print();
-
+*/
     std::unique_ptr<resurs_XML> xmlData = resurs_XML::create();
-    Iterator result = xmlData->Find("title", "1984");
+    xmlData->load("./example.txt");
+    for (Iterator it = xmlData->begin(); it != xmlData->end(); ++it) {
+        const XML_node& node = *it;
+        node.print();
+    }
 
-    doc.save("./test.txt");
+    //doc.save("./test.txt");
     return 0;
 }
+
 
