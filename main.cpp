@@ -75,7 +75,7 @@ public:
         std::string xml = stringify();
         write_file(path, xml);
     };
-
+//"<note>\n  <to>Tove</to>\n  <from>Jani</from>\n  <heading>Reminder</heading>\n  <body>Don't forget me this weekend!</body>\n</note>"
     void print() {
         std::string xml = stringify();
         std::cout << xml << std::endl;
@@ -196,7 +196,7 @@ class resurs_XML {
 public:
 
     Iterator begin() {
-        return Iterator(document.getRootNode());
+        return Iterator(document->getRootNode());
     }
 
     Iterator end() {
@@ -204,37 +204,39 @@ public:
     }
 
     void parse(const std::string &xml) {
-        document.parse(xml);
+        document->parse(xml);
     }
 
     void load(const std::string &path) {
-        document.load(path);
+        document->load(path);
     }
 
     void save(const std::string &path) {
-        document.save(path);
+        document->save(path);
     }
 
     void print() {
-        document.print();
+        document->print();
     }
 
     void for_each(std::function<void(const XML_node &)> callback) {
-        document.for_each(callback);
+        document->for_each(callback);
     }
 
     static std::unique_ptr<resurs_XML> create() {
         return std::unique_ptr<resurs_XML>();
     }
+    static std::unique_ptr<resurs_XML> create(const std::string &filePath) {
+        std::unique_ptr<resurs_XML> instance(new resurs_XML());
+        instance->load(filePath);
+        return instance;
+    }
 
     Iterator Find(const std::string& tag, const std::string& value) {
-        return FindInSubtree(document.getRootNode(), tag, value);
+        return FindInSubtree(document->getRootNode(), tag, value);
     }
 private:
-    XML_document document;
-
-    resurs_XML() : document() {}
-    //resurs_XML(XML_node& documentNode) : document(documentNode) {}
+    std::unique_ptr<XML_document> document;
 
     Iterator FindInSubtree(XML_node* node, const std::string& tag, const std::string& value) {
         if (node->tag == tag && node->value == value) {
@@ -252,13 +254,11 @@ private:
 };
 
 int main() {
-/*
-    XML_document doc;
-    doc.load("./example.txt");
-    doc.print();
-*/
-    std::unique_ptr<resurs_XML> xmlData = resurs_XML::create();
-    xmlData->load("./example.txt");
+//    XML_document doc;
+//    doc.load("./example.txt");
+//    doc.print();
+
+    std::unique_ptr<resurs_XML> xmlData = resurs_XML::create("./example.txt");
     for (Iterator it = xmlData->begin(); it != xmlData->end(); ++it) {
         const XML_node& node = *it;
         node.print();
