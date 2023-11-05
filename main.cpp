@@ -11,16 +11,16 @@ public:
     std::string tag;
     std::string value;
     std::vector<std::unique_ptr<XML_node>> children;
-    XML_node *parent;
+    //XML_node *parent;
 
     XML_node(const std::string &tag, const std::string &value) : tag(tag), value(value) {}
 
     void append(std::unique_ptr<XML_node> child) {
-        child->parent = this;
+        //child->parent = this;
         children.push_back(std::move(child));
     }
 
-    std::string stringify(const int depth = 0) const{
+    std::string stringify(const int depth = 0) const {
         const std::string indent = std::string(depth * 2, ' ');
         std::string result = "";
 
@@ -57,7 +57,7 @@ class XML_document {
 public:
     XML_document() : root_node(nullptr) {};
 
-    XML_node* getRootNode() {
+    XML_node *getRootNode() {
         return root_node.get();
     }
 
@@ -75,6 +75,7 @@ public:
         std::string xml = stringify();
         write_file(path, xml);
     };
+
 //"<note>\n  <to>Tove</to>\n  <from>Jani</from>\n  <heading>Reminder</heading>\n  <body>Don't forget me this weekend!</body>\n</note>"
     void print() {
         std::string xml = stringify();
@@ -172,77 +173,108 @@ private:
 
 class Iterator {
 public:
-    Iterator(XML_node *ptr) : current(ptr) {}
-    Iterator(XML_node &node) : current(&node) {}
+    Iterator(XML_node *root, bool endReached=false) : root(root), endReached(endReached) {
+        if (root != nullptr) {
+            it = root->children.begin();
+        }
+    }
 
     Iterator &operator++() {
-        if (!current->children.empty()) { current = current->children.front().get(); }
+        if (first) {
+            first = false;
+        }
+
+        if (root->children.empty()) {
+            endReached = true;
+            return *this;
+        }
+
+        if (childIt == nullptr) {
+            childIt = std::make_unique<Iterator>(it->get(), it->get());
+            return *childIt;
+        }
+
+        ++it;
+        if (it == root->children.end()) {
+            endReached = true;
+        }
         return *this;
     }
 
-    Iterator &operator--() {
-        if (!current->children.empty()) { current = current->children.back().get(); }
-        return *this;
-    }
-    bool operator==(const Iterator &other) const { return current == other.current; }
-    bool operator!=(const Iterator &other) const { return current != other.current; }
-    XML_node &operator*() { return *current; }
+    bool operator==(const Iterator &other) const { return root == other.root && endReached == other.endReached; }
+    bool operator!=(const Iterator &other) const { return !(*this == other); }
 
+    XML_node &operator*() {
+        if (endReached) {
+            throw std::runtime_error("endReached");
+        }
+        if (first) {
+            return *root;
+        }
+        return **it;
+    }
 private:
-    XML_node *current;
+    std::vector<std::unique_ptr<XML_node>>::iterator it;
+    std::unique_ptr<Iterator> childIt;
+    bool first = true;
+    XML_node *root;
+    bool endReached;
 };
 
-class resurs_XML {
+
+class resource_XML {
 public:
 
     Iterator begin() {
-        return Iterator(document->getRootNode());
+        return Iterator(document.getRootNode(), false);
     }
 
     Iterator end() {
-        return Iterator(nullptr);
+        return Iterator(document.getRootNode(), true);
     }
 
     void parse(const std::string &xml) {
-        document->parse(xml);
+        document.parse(xml);
     }
 
     void load(const std::string &path) {
-        document->load(path);
+        document.load(path);
     }
 
     void save(const std::string &path) {
-        document->save(path);
+        document.save(path);
     }
 
     void print() {
-        document->print();
+        document.print();
     }
 
     void for_each(std::function<void(const XML_node &)> callback) {
-        document->for_each(callback);
+        document.for_each(callback);
     }
 
-    static std::unique_ptr<resurs_XML> create() {
-        return std::unique_ptr<resurs_XML>();
+    static std::unique_ptr<resource_XML> create() {
+        return std::unique_ptr<resource_XML>();
     }
-    static std::unique_ptr<resurs_XML> create(const std::string &filePath) {
-        std::unique_ptr<resurs_XML> instance(new resurs_XML());
+
+    static std::unique_ptr<resource_XML> create(const std::string &filePath) {
+        std::unique_ptr<resource_XML> instance(new resource_XML());
         instance->load(filePath);
         return instance;
     }
 
-    Iterator Find(const std::string& tag, const std::string& value) {
-        return FindInSubtree(document->getRootNode(), tag, value);
+    Iterator Find(const std::string &tag, const std::string &value) {
+        return FindInSubtree(document.getRootNode(), tag, value);
     }
-private:
-    std::unique_ptr<XML_document> document;
 
-    Iterator FindInSubtree(XML_node* node, const std::string& tag, const std::string& value) {
+private:
+    XML_document document;
+
+    Iterator FindInSubtree(XML_node *node, const std::string &tag, const std::string &value) {
         if (node->tag == tag && node->value == value) {
-            return Iterator(*node);
+            return Iterator(node);
         }
-        for (const auto& child : node->children) {
+        for (const auto &child: node->children) {
             Iterator result = FindInSubtree(child.get(), tag, value);
             if (result != end()) {
                 return result;
@@ -251,6 +283,7 @@ private:
         return end();
     }
 
+
 };
 
 int main() {
@@ -258,11 +291,23 @@ int main() {
 //    doc.load("./example.txt");
 //    doc.print();
 
-    std::unique_ptr<resurs_XML> xmlData = resurs_XML::create("./example.txt");
-    for (Iterator it = xmlData->begin(); it != xmlData->end(); ++it) {
-        const XML_node& node = *it;
-        node.print();
-    }
+    std::unique_ptr<resource_XML> resource = resource_XML::create("./example.txt");
+    resource->print();
+
+     for (XML_node& node : *resource) {
+     // std::cout << node.value << '\n';
+     std::cout << node.tag <<" " <<  node.value << '\n';
+     // node.print();
+ }
+
+//    Iterator it = resource->begin();
+//    const XML_node &node = *it;
+//    node.print();
+
+//    for (Iterator it = resource->begin(); it != resource->end(); ++it) {
+//        const resource& node = *it;
+//        node.print();
+//    }
 
     //doc.save("./test.txt");
     return 0;
