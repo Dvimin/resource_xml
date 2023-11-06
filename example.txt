@@ -1,5 +1,5 @@
 <library> Bibli
-  <book1>
+  <book1> Boki-Boki
     <title>War and Peace
 	<author>Leo Tolstoy
 		<glav> First op.</glav>
@@ -7,12 +7,13 @@
     </title>
 
   </book1>
-  <book2>
+  <book2> Baki-Baki
     <title2>1984</title2>
     <author2>George Orwell</author2>
   </book2>
-  <book3>
-    <title3>To Kill a Mockingbird</title3>
+  <book3> Biki-Biki
+    <title3>To Kill a Mockingbird
     <author3>Harper Lee</author3>
+    </title3>
   </book3>
 </library>

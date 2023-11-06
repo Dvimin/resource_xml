@@ -2,7 +2,6 @@
 #include <string>
 #include <vector>
 #include <fstream>
-#include <algorithm>
 #include <memory>
 #include <functional>
 #include <stack>
@@ -22,7 +21,7 @@ public:
         children.push_back(std::move(child));
     }
 
-    std::string stringify(const int depth = 0) const{
+    std::string stringify(const int depth = 0) const {
         const std::string indent = std::string(depth * 2, ' ');
         std::string result = "";
 
@@ -41,7 +40,7 @@ public:
         return result;
     };
 
-    std::string stringify_element(const int depth = 0) const{
+    std::string stringify_element(const int depth = 0) const {
         const std::string indent = std::string(depth * 2, ' ');
         std::string result = "";
 
@@ -62,6 +61,7 @@ public:
         std::string xml = stringify();
         std::cout << xml << std::endl;
     }
+
     void print_element() const {
         std::string xml = stringify_element();
         std::cout << xml << std::endl;
@@ -72,7 +72,7 @@ class XML_document {
 public:
     XML_document() : root_node(nullptr) {};
 
-    XML_node* getRootNode() {
+    XML_node *getRootNode() {
         return root_node.get();
     }
 
@@ -198,13 +198,13 @@ private:
 
 class Iterator {
 public:
-    Iterator(XML_node* node) : current(node) {
+    Iterator(XML_node *node) : current(node) {
         if (current) {
             stack.push(current);
         }
     }
 
-    Iterator& operator++() {
+    Iterator &operator++() {
         if (!stack.empty()) {
             current = stack.top();
             stack.pop();
@@ -217,21 +217,32 @@ public:
         return *this;
     }
 
-    bool operator==(const Iterator& other) const {
+    bool operator==(const Iterator &other) const {
         return current == other.current;
     }
 
-    bool operator!=(const Iterator& other) const {
+    bool operator!=(const Iterator &other) const {
         return !(*this == other);
     }
 
-    XML_node& operator*() {
+    XML_node &operator*() {
         return *current;
     }
 
+    XML_node *operator->() {
+        return current;
+    }
+
+    void append(std::unique_ptr<XML_node> &&uniquePtr) const {
+        if (current) {
+            current->children.push_back(std::move(uniquePtr));
+        }
+    }
+
+
 private:
-    XML_node* current;
-    std::stack<XML_node*> stack;
+    XML_node *current;
+    std::stack<XML_node *> stack;
 };
 
 class resurs_XML {
@@ -243,6 +254,7 @@ public:
     Iterator end() {
         return Iterator(nullptr);
     }
+
     void parse(const std::string &xml) {
         document.parse(xml);
     }
@@ -254,35 +266,34 @@ public:
     void save(const std::string &path) {
         document.save(path);
     }
-/*    bool Erase(Iterator it) {
-        if (it.endReached) {
+
+    bool Erase(Iterator it) {
+        if (it == end()) {
             return false;
         }
-        if (it.first) {
+        Iterator parentIt = it->parent;
+        if (parentIt == end()) {
             return false;
         }
-        Iterator parentIt = (*it.root)->begin();
-        while (!parentIt.endReached && parentIt.childIt.get() != &it) {
-            ++parentIt;
-        }
+        parentIt->children.insert(parentIt->children.end(), std::make_move_iterator(it->children.begin()),
+                                  std::make_move_iterator(it->children.end()));
 
-        if (parentIt.endReached) {
-            return false;
-        }
-
-        //(*parentIt.it)->children.insert()
-        (*parentIt.it)->children.insert((*parentIt.it)->children.end(), (*it.it)->children.begin(), (*it.it)->children.end());
-
-        (*parentIt.it)->children.erase(it.it);
+        parentIt->children.erase(std::remove_if(parentIt->children.begin(), parentIt->children.end(),
+                                                [&it](const std::unique_ptr<XML_node> &element) {
+                                                    return element.get() == &(*it);
+                                                }), parentIt->children.end());
 
         return true;
-    }*/
+    }
+
     void print() {
         document.print();
     }
+
     void print_element() {
         document.print_element();
     }
+
     void for_each(std::function<void(const XML_node &)> callback) {
         document.for_each(callback);
     }
@@ -290,13 +301,25 @@ public:
     static std::unique_ptr<resurs_XML> create() {
         return std::unique_ptr<resurs_XML>();
     }
+
     static std::unique_ptr<resurs_XML> create(const std::string &filePath) {
         std::unique_ptr<resurs_XML> instance(new resurs_XML());
         instance->load(filePath);
         return instance;
     }
 
-    Iterator Find(const std::string& tag, const std::string& value) {
+    Iterator add(const std::string &tag, const std::string &value, const Iterator &ItParent) {
+        if (ItParent == end()) {
+            return end();
+        }
+        std::unique_ptr<XML_node> new_node = std::make_unique<XML_node>(tag, value);
+
+        ItParent.append(std::move(new_node));
+        auto ItAddElement = find(tag, value);
+        return ItAddElement;
+    }
+
+    Iterator find(const std::string &tag, const std::string &value) {
         for (auto it = begin(); it != end(); ++it) {
             if ((*it).tag == tag && (*it).value == value) {
                 return it;
@@ -304,48 +327,53 @@ public:
         }
         return end();
     }
+
 private:
     XML_document document;
 };
 
 int main() {
-//    XML_document doc;
-//    doc.load("./example.txt");
-//    doc.print();
-
     std::unique_ptr<resurs_XML> resource = resurs_XML::create("./example.txt");
+
+    std::cout << "All elements:" << std::endl;
     resource->print();
-    int count = 0;
-    auto it = resource->begin();
-    ++it;
-    for(auto& node = it; node != resource->end(); ++node){
-        std::cout << (*node).tag <<" " <<  (*node).value << '\n';
-        count++;
+
+    std::string searchTag = "title2";
+    std::string searchValue = "1984";
+    Iterator foundIt = resource->find(searchTag, searchValue);
+
+    if (foundIt != resource->end()) {
+        std::cout << "\nFound element:" << std::endl;
+        foundIt->print_element();
+    } else {
+        std::cout << "\nElement not found." << std::endl;
     }
-    std::cout << count;
-    //auto it = resource->begin();
 
-//int count = 0;
-//     for (XML_node& node : *resource) {
-//         // std::cout << node.value << '\n';
-//         std::cout << node.tag <<" " <<  node.value << '\n';
-//         count++;
-//
-//
-//         // node.print();
-//     }
-//    std::cout << count;
-    //auto it = resource->Find("library", "Bibli");
-    //(*it).print();
+    std::string newTag = "newBook";
+    std::string newValue = "New Book Title";
+    Iterator parentIt = resource->find("library", "Bibli");
 
-//    (*resource->begin()).print();
-//    auto it = resource->begin();
-//    ++it;
-//    (*it).print();
+    if (parentIt != resource->end()) {
+        Iterator addedIt = resource->add(newTag, newValue, parentIt);
+        if (addedIt != resource->end()) {
+            std::cout << "\nAdd element:" << std::endl;
+            addedIt->print_element();
+        } else {
+            std::cout << "\nFailed to add the new element." << std::endl;
+        }
+    } else {
+        std::cout << "\nParent element not found." << std::endl;
+    }
+    resource->print();
 
-
-    //doc.save("./test.txt");
+    if (foundIt != resource->end()) {
+        if (resource->Erase(foundIt)) {
+            std::cout << "\nElement has been erased." << std::endl;
+        } else {
+            std::cout << "\nFailed to erase the element." << std::endl;
+        }
+    }
+    resource->save("./output.txt");
+    std::cout << "\nWork completed :)" << std::endl;
     return 0;
 }
-
-
