@@ -1,6 +1,18 @@
-<note>
-  <to>Tove</to>
-  <from>Jani</from>
-  <heading>Reminder</heading>
-  <body>Don't forget me this weekend!</body>
-</note>
+<library> Bibli
+  <book1>
+    <title>War and Peace
+	<author>Leo Tolstoy
+		<glav> First op.</glav>
+	</author>
+    </title>
+
+  </book1>
+  <book2>
+    <title2>1984</title2>
+    <author2>George Orwell</author2>
+  </book2>
+  <book3>
+    <title3>To Kill a Mockingbird</title3>
+    <author3>Harper Lee</author3>
+  </book3>
+</library>
