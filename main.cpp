@@ -6,7 +6,6 @@
 #include <functional>
 #include <stack>
 
-
 class XML_node {
 public:
     std::string tag;
@@ -67,7 +66,6 @@ public:
         std::cout << xml << std::endl;
     }
 };
-
 class XML_document {
 public:
     XML_document() : root_node(nullptr) {};
@@ -82,14 +80,22 @@ public:
     };
 
     void load(const std::string &path) {
-        const std::string xml = read_file(path);
-        parse(xml);
-    };
+        try {
+            const std::string xml = read_file(path);
+            parse(xml);
+        } catch (const std::exception &e) {
+            std::cerr << "Error loading XML from file: " << e.what() << std::endl;
+        }
+    }
 
     void save(const std::string &path) {
-        std::string xml = stringify();
-        write_file(path, xml);
-    };
+        try {
+            std::string xml = stringify();
+            write_file(path, xml);
+        } catch (const std::exception &e) {
+            std::cerr << "Error saving XML to file: " << e.what() << std::endl;
+        }
+    }
 
     void print() {
         std::string xml = stringify();
@@ -271,19 +277,25 @@ public:
         if (it == end()) {
             return false;
         }
+
         Iterator parentIt = it->parent;
         if (parentIt == end()) {
             return false;
         }
-        parentIt->children.insert(parentIt->children.end(), std::make_move_iterator(it->children.begin()),
-                                  std::make_move_iterator(it->children.end()));
 
-        parentIt->children.erase(std::remove_if(parentIt->children.begin(), parentIt->children.end(),
-                                                [&it](const std::unique_ptr<XML_node> &element) {
-                                                    return element.get() == &(*it);
-                                                }), parentIt->children.end());
+        try {
+            parentIt->children.insert(parentIt->children.end(), std::make_move_iterator(it->children.begin()),
+                                      std::make_move_iterator(it->children.end()));
 
-        return true;
+            parentIt->children.erase(std::remove_if(parentIt->children.begin(), parentIt->children.end(),
+                                                    [&it](const std::unique_ptr<XML_node> &element) {
+                                                        return element.get() == &(*it);
+                                                    }), parentIt->children.end());
+            return true;
+        } catch (const std::exception &e) {
+            std::cerr << "Error erasing XML element: " << e.what() << std::endl;
+            return false;
+        }
     }
 
     void print() {
@@ -312,11 +324,16 @@ public:
         if (ItParent == end()) {
             return end();
         }
-        std::unique_ptr<XML_node> new_node = std::make_unique<XML_node>(tag, value);
 
-        ItParent.append(std::move(new_node));
-        auto ItAddElement = find(tag, value);
-        return ItAddElement;
+        try {
+            std::unique_ptr<XML_node> new_node = std::make_unique<XML_node>(tag, value);
+            ItParent.append(std::move(new_node));
+            auto ItAddElement = find(tag, value);
+            return ItAddElement;
+        } catch (const std::exception &e) {
+            std::cerr << "Error adding XML element: " << e.what() << std::endl;
+            return end();
+        }
     }
 
     Iterator find(const std::string &tag, const std::string &value) {
